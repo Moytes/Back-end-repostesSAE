@@ -8,6 +8,7 @@ pub struct Claims {
     pub exp: usize,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthPayload {
     pub user_id: uuid::Uuid,

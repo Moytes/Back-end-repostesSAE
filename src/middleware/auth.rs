@@ -7,7 +7,7 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 use crate::models::auth::Claims;
 use crate::models::response::ApiResponse;
 use axum::Json;
-use hyper::StatusCode;
+use axum::http::StatusCode;
 
 pub struct AuthenticatedUser(pub Claims);
 
@@ -18,7 +18,7 @@ where
 {
     type Rejection = (StatusCode, Json<ApiResponse<String>>);
 
-    async fn from_request_parts(parts: &Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         // 1. Extraer el header de Authorization
         let auth_header = parts
             .headers
