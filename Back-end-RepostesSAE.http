@@ -1,0 +1,14 @@
+@Back_end_RepostesSAE_HostAddress = http://localhost:5172
+
+GET {{Back_end_RepostesSAE_HostAddress}}/
+Accept: application/json
+
+###
+
+GET {{Back_end_RepostesSAE_HostAddress}}/health/db
+Accept: application/json
+
+###
+
+GET {{Back_end_RepostesSAE_HostAddress}}/health/db/migrations
+Accept: application/json

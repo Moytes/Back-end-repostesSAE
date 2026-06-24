@@ -1,5 +1,48 @@
+# Build
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+
+# IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+.vscode/
+*.code-workspace
+
+# Configuración con credenciales
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+
+# Secretos
+*.pem
+*.key
+*.pfx
+credentials.json
+.keys/
 .env
 
-/target
-**/*.rs.bk
-Cargo.lock
+# Logs
+*.log
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agents/Claude
+.agents/
