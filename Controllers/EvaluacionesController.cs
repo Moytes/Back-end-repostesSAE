@@ -17,7 +17,7 @@ public sealed class EvaluacionesController(
     IEvaluacionRepository evaluacionRepository,
     IConfiguration configuration) : ControllerBase
 {
-    private int PsicologiaAreaId => configuration.GetValue("PsicologiaAreaId", 2);
+    private int[] PsicologiaAreaIds => configuration.GetSection("PsicologiaAreaIds").Get<int[]>() ?? [2, 3];
 
     [HttpGet]
     public async Task<IActionResult> GetEvaluaciones(
@@ -28,7 +28,7 @@ public sealed class EvaluacionesController(
         if (userId == null) return Unauthorized();
 
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId.Value);
-        var items = await clinicalRepository.GetEvaluaciones(schoolIds, PsicologiaAreaId, studentId, schoolYearId);
+        var items = await clinicalRepository.GetEvaluaciones(schoolIds, PsicologiaAreaIds, studentId, schoolYearId);
 
         return Ok(ApiResponse<IEnumerable<EvaluacionListItemDto>>.Ok(items));
     }
@@ -80,7 +80,7 @@ public sealed class EvaluacionesController(
     private async Task<bool> IsInScope(Guid userId, Guid alumnoId)
     {
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId);
-        return await scopeRepository.IsStudentInScope(alumnoId, schoolIds, PsicologiaAreaId);
+        return await scopeRepository.IsStudentInScope(alumnoId, schoolIds, PsicologiaAreaIds);
     }
 
     private Guid? GetCurrentUserId()

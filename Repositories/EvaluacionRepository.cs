@@ -51,6 +51,48 @@ public sealed class EvaluacionRepository(IConfiguration configuration) : IEvalua
         return await conn.QueryFirstOrDefaultAsync<EvaluacionDetailDto>(sql, new { Id = id });
     }
 
+    public async Task<IEnumerable<EvaluacionDetailDto>> GetByStudent(Guid studentId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        const string sql = """
+            SELECT
+                e.id                        AS Id,
+                e.alumno_id                 AS AlumnoId,
+                TRIM(CONCAT(s.name, ' ', s.father_last_name, ' ', COALESCE(s.mother_last_name, ''))) AS StudentName,
+                e.ciclo_id                  AS CicloId,
+                e.fecha_elaboracion         AS FechaElaboracion,
+                e.motivo_evaluacion         AS MotivoEvaluacion,
+                e.conducta_evaluacion       AS ConductaEvaluacion,
+                e.antecedentes_embarazo     AS AntecedentesEmbarazo,
+                e.antecedentes_heredo       AS AntecedentesHeredo,
+                e.desarrollo_motor          AS DesarrolloMotor,
+                e.desarrollo_lenguaje       AS DesarrolloLenguaje,
+                e.historia_medica           AS HistoriaMedica,
+                e.historia_escolar          AS HistoriaEscolar,
+                e.situacion_familiar        AS SituacionFamiliar,
+                e.descripcion_alumno        AS DescripcionAlumno,
+                e.contexto_familiar         AS ContextoFamiliar,
+                e.contexto_escolar          AS ContextoEscolar,
+                e.contexto_social           AS ContextoSocial,
+                e.desarrollo_fisico         AS DesarrolloFisico,
+                e.desarrollo_cognitivo      AS DesarrolloCognitivo,
+                e.desarrollo_socioafectivo  AS DesarrolloSocioafectivo,
+                e.evaluacion_aprendizajes   AS EvaluacionAprendizajes,
+                e.creatividad               AS Creatividad,
+                e.interpretacion_resultados AS InterpretacionResultados,
+                e.conclusiones              AS Conclusiones,
+                e.estado                    AS Estado,
+                e.created_at                AS CreatedAt,
+                e.updated_at                AS UpdatedAt
+            FROM evaluaciones_psicopedagogicas e
+            JOIN "student" s ON s.id = e.alumno_id
+            WHERE e.alumno_id = @StudentId
+            ORDER BY e.fecha_elaboracion DESC;
+            """;
+
+        return await conn.QueryAsync<EvaluacionDetailDto>(sql, new { StudentId = studentId });
+    }
+
     public async Task<Guid?> GetAlumnoId(int id)
     {
         await using var conn = new NpgsqlConnection(_connectionString);

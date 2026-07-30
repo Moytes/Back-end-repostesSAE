@@ -16,7 +16,7 @@ public sealed class SesionesController(
     ISesionRepository sesionRepository,
     IConfiguration configuration) : ControllerBase
 {
-    private int PsicologiaAreaId => configuration.GetValue("PsicologiaAreaId", 2);
+    private int[] PsicologiaAreaIds => configuration.GetSection("PsicologiaAreaIds").Get<int[]>() ?? [2, 3];
 
     [HttpGet("alumnos/{alumnoId:guid}/sesiones")]
     public async Task<IActionResult> GetByStudent(Guid alumnoId)
@@ -85,7 +85,7 @@ public sealed class SesionesController(
     private async Task<bool> IsInScope(Guid userId, Guid alumnoId)
     {
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId);
-        return await scopeRepository.IsStudentInScope(alumnoId, schoolIds, PsicologiaAreaId);
+        return await scopeRepository.IsStudentInScope(alumnoId, schoolIds, PsicologiaAreaIds);
     }
 
     private Guid? GetCurrentUserId()

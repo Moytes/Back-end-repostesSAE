@@ -16,7 +16,7 @@ public sealed class ReportesController(
     IClinicalReadRepository clinicalRepository,
     IConfiguration configuration) : ControllerBase
 {
-    private int PsicologiaAreaId => configuration.GetValue("PsicologiaAreaId", 2);
+    private int[] PsicologiaAreaIds => configuration.GetSection("PsicologiaAreaIds").Get<int[]>() ?? [2, 3];
 
     [HttpGet("alertas-tea")]
     public async Task<IActionResult> GetAlertasTea(
@@ -27,7 +27,7 @@ public sealed class ReportesController(
         if (userId == null) return Unauthorized();
 
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId.Value);
-        var items = await clinicalRepository.GetTeaAlerts(schoolIds, PsicologiaAreaId, schoolYearId, alertLevel);
+        var items = await clinicalRepository.GetTeaAlerts(schoolIds, PsicologiaAreaIds, schoolYearId, alertLevel);
 
         return Ok(ApiResponse<IEnumerable<TeaAlertDto>>.Ok(items));
     }
@@ -41,9 +41,23 @@ public sealed class ReportesController(
         if (userId == null) return Unauthorized();
 
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId.Value);
-        var items = await clinicalRepository.GetCieSummary(schoolIds, PsicologiaAreaId, studentId, schoolYearId);
+        var items = await clinicalRepository.GetCieSummary(schoolIds, PsicologiaAreaIds, studentId, schoolYearId);
 
         return Ok(ApiResponse<IEnumerable<CieSummaryDto>>.Ok(items));
+    }
+
+    [HttpGet("sabana-datos")]
+    public async Task<IActionResult> GetStudentDataSheet(
+        [FromQuery] int? schoolId = null,
+        [FromQuery] int? schoolYearId = null)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId.Value);
+        var items = await clinicalRepository.GetStudentDataSheet(schoolIds, PsicologiaAreaIds, schoolId, schoolYearId);
+
+        return Ok(ApiResponse<IEnumerable<StudentDataSheetDto>>.Ok(items));
     }
 
     private Guid? GetCurrentUserId()

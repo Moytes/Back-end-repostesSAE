@@ -23,6 +23,7 @@ builder.Services.AddScoped<ICanalizacionRepository, CanalizacionRepository>();
 builder.Services.AddScoped<IClinicalReadRepository, ClinicalReadRepository>();
 builder.Services.AddScoped<IEvaluacionRepository, EvaluacionRepository>();
 builder.Services.AddScoped<ISesionRepository, SesionRepository>();
+builder.Services.AddScoped<ITeaRepository, TeaRepository>();
 
 // Autenticación JWT (mismo secreto/issuer/audience que Back-end-SAEV3)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

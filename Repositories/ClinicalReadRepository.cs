@@ -10,7 +10,7 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
         configuration.GetConnectionString("ReportsDb")
         ?? throw new InvalidOperationException("Connection string 'ReportsDb' is not configured.");
 
-    // CTE: alumnos dentro del alcance (escuela permitida + área de atención del psicólogo).
+    // CTE: alumnos dentro del alcance (escuela permitida + áreas de atención del especialista).
     private const string AlumnosScopeCte = """
         WITH alumnos_scope AS (
             SELECT DISTINCT s.id
@@ -20,7 +20,7 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
             WHERE COALESCE(g.school_id, s.school_id) = ANY(@AllowedSchoolIds)
               AND EXISTS (
                   SELECT 1 FROM "student_attention_area" saa
-                  WHERE saa.student_id = s.id AND saa.attention_area_id = @AreaId
+                  WHERE saa.student_id = s.id AND saa.attention_area_id = ANY(@AreaIds)
               )
         )
         """;
@@ -29,7 +29,7 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
         "TRIM(CONCAT(s.name, ' ', s.father_last_name, ' ', COALESCE(s.mother_last_name, '')))";
 
     public async Task<IEnumerable<EvaluacionListItemDto>> GetEvaluaciones(
-        int[] allowedSchoolIds, int attentionAreaId, Guid? studentId, int? cicloId)
+        int[] allowedSchoolIds, int[] attentionAreaIds, Guid? studentId, int? cicloId)
     {
         if (allowedSchoolIds.Length == 0) return [];
 
@@ -56,14 +56,14 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
         return await conn.QueryAsync<EvaluacionListItemDto>(sql, new
         {
             AllowedSchoolIds = allowedSchoolIds,
-            AreaId = attentionAreaId,
+            AreaIds = attentionAreaIds,
             StudentId = studentId,
             CicloId = cicloId
         });
     }
 
     public async Task<IEnumerable<TeaAlertDto>> GetTeaAlerts(
-        int[] allowedSchoolIds, int attentionAreaId, int? cicloId, int? alertLevel)
+        int[] allowedSchoolIds, int[] attentionAreaIds, int? cicloId, int? alertLevel)
     {
         if (allowedSchoolIds.Length == 0) return [];
 
@@ -97,14 +97,14 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
         return await conn.QueryAsync<TeaAlertDto>(sql, new
         {
             AllowedSchoolIds = allowedSchoolIds,
-            AreaId = attentionAreaId,
+            AreaIds = attentionAreaIds,
             CicloId = cicloId,
             AlertLevel = alertLevel
         });
     }
 
     public async Task<IEnumerable<CieSummaryDto>> GetCieSummary(
-        int[] allowedSchoolIds, int attentionAreaId, Guid? studentId, int? cicloId)
+        int[] allowedSchoolIds, int[] attentionAreaIds, Guid? studentId, int? cicloId)
     {
         if (allowedSchoolIds.Length == 0) return [];
 
@@ -132,9 +132,72 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
         return await conn.QueryAsync<CieSummaryDto>(sql, new
         {
             AllowedSchoolIds = allowedSchoolIds,
-            AreaId = attentionAreaId,
+            AreaIds = attentionAreaIds,
             StudentId = studentId,
             CicloId = cicloId
+        });
+    }
+
+    public async Task<IEnumerable<StudentDataSheetDto>> GetStudentDataSheet(
+        int[] allowedSchoolIds, int[] attentionAreaIds, int? schoolId, int? schoolYearId)
+    {
+        if (allowedSchoolIds.Length == 0) return [];
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var sql = $"""
+            {AlumnosScopeCte}
+            SELECT
+                s.id                                    AS StudentId,
+                {StudentNameExpr}                        AS StudentName,
+                sc.name                                  AS SchoolName,
+                CONCAT(gr.numero, '° ', g.section)       AS GroupName,
+                gr.numero                                AS Grade,
+                COALESCE((
+                    SELECT array_agg(DISTINCT d.name)
+                    FROM student_disability sd
+                    JOIN disability d ON d.id = sd.disability_id
+                    WHERE sd.student_id = s.id
+                ), ARRAY[]::text[])                      AS Disabilities,
+                COALESCE((
+                    SELECT array_agg(DISTINCT aa.name)
+                    FROM student_attention_area saa2
+                    JOIN attention_area aa ON aa.id = saa2.attention_area_id
+                    WHERE saa2.student_id = s.id
+                ), ARRAY[]::text[])                      AS AttentionAreas,
+                (
+                    SELECT ce.estado FROM cie_evaluaciones ce
+                    WHERE ce.alumno_id = s.id
+                    ORDER BY ce.fecha DESC, ce.id DESC
+                    LIMIT 1
+                )                                        AS CieStatus,
+                (
+                    SELECT CASE ts.nivel_alerta
+                        WHEN 'SIGNIFICATIVO' THEN 2
+                        WHEN 'MODERADO' THEN 1
+                        ELSE 0
+                    END
+                    FROM tea_screenings ts
+                    WHERE ts.alumno_id = s.id
+                    ORDER BY ts.fecha DESC, ts.id DESC
+                    LIMIT 1
+                )                                        AS TeaAlertLevel
+            FROM "student" s
+            JOIN "registration" r ON r.student_id = s.id
+            JOIN "group" g ON g.id = r.group_id
+            JOIN "grade" gr ON gr.id = g.grade_id
+            JOIN "school" sc ON sc.id = g.school_id
+            WHERE s.id IN (SELECT id FROM alumnos_scope)
+              AND (@SchoolId IS NULL OR sc.id = @SchoolId)
+              AND (@SchoolYearId IS NULL OR r.school_year_id = @SchoolYearId)
+            ORDER BY StudentName;
+            """;
+
+        return await conn.QueryAsync<StudentDataSheetDto>(sql, new
+        {
+            AllowedSchoolIds = allowedSchoolIds,
+            AreaIds = attentionAreaIds,
+            SchoolId = schoolId,
+            SchoolYearId = schoolYearId
         });
     }
 }

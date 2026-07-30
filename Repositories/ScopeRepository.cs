@@ -27,7 +27,7 @@ public sealed class ScopeRepository(IConfiguration configuration) : IScopeReposi
         return ids.Distinct().ToArray();
     }
 
-    public async Task<bool> IsStudentInScope(Guid studentId, int[] allowedSchoolIds, int attentionAreaId)
+    public async Task<bool> IsStudentInScope(Guid studentId, int[] allowedSchoolIds, int[] attentionAreaIds)
     {
         if (allowedSchoolIds.Length == 0)
             return false;
@@ -43,7 +43,7 @@ public sealed class ScopeRepository(IConfiguration configuration) : IScopeReposi
                   AND COALESCE(g.school_id, s.school_id) = ANY(@AllowedSchoolIds)
                   AND EXISTS (
                       SELECT 1 FROM "student_attention_area" saa
-                      WHERE saa.student_id = s.id AND saa.attention_area_id = @AreaId
+                      WHERE saa.student_id = s.id AND saa.attention_area_id = ANY(@AreaIds)
                   )
             );
             """;
@@ -52,7 +52,7 @@ public sealed class ScopeRepository(IConfiguration configuration) : IScopeReposi
         {
             StudentId = studentId,
             AllowedSchoolIds = allowedSchoolIds,
-            AreaId = attentionAreaId
+            AreaIds = attentionAreaIds
         });
     }
 }
