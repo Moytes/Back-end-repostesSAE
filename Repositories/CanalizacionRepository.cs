@@ -11,7 +11,7 @@ public sealed class CanalizacionRepository(IConfiguration configuration) : ICana
         ?? throw new InvalidOperationException("Connection string 'ReportsDb' is not configured.");
 
     public async Task<IEnumerable<CanalizacionListItemDto>> GetCanalizaciones(
-        int[] allowedSchoolIds, int attentionAreaId,
+        int[] allowedSchoolIds, int[] attentionAreaIds,
         string? estado, Guid? solicitanteId, Guid? receptorId)
     {
         if (allowedSchoolIds.Length == 0)
@@ -27,7 +27,7 @@ public sealed class CanalizacionRepository(IConfiguration configuration) : ICana
                 WHERE COALESCE(g.school_id, s.school_id) = ANY(@AllowedSchoolIds)
                   AND EXISTS (
                       SELECT 1 FROM "student_attention_area" saa
-                      WHERE saa.student_id = s.id AND saa.attention_area_id = @AreaId
+                      WHERE saa.student_id = s.id AND saa.attention_area_id = ANY(@AreaIds)
                   )
             )
             SELECT
@@ -62,7 +62,7 @@ public sealed class CanalizacionRepository(IConfiguration configuration) : ICana
         return await conn.QueryAsync<CanalizacionListItemDto>(sql, new
         {
             AllowedSchoolIds = allowedSchoolIds,
-            AreaId = attentionAreaId,
+            AreaIds = attentionAreaIds,
             Estado = string.IsNullOrWhiteSpace(estado) ? null : estado,
             SolicitanteId = solicitanteId,
             ReceptorId = receptorId

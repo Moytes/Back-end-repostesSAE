@@ -7,5 +7,5 @@ namespace Back_end_RepostesSAE.Repositories;
 public interface IScopeRepository
 {
     Task<int[]> GetAllowedSchoolIds(Guid userId);
-    Task<bool> IsStudentInScope(Guid studentId, int[] allowedSchoolIds, int attentionAreaId);
+    Task<bool> IsStudentInScope(Guid studentId, int[] allowedSchoolIds, int[] attentionAreaIds);
 }

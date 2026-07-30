@@ -19,7 +19,7 @@ public sealed class CanalizacionesController(
     private static readonly string[] EstadosValidos =
         ["PENDIENTE", "RECIBIDA", "EN_PROCESO", "CERRADA"];
 
-    private int PsicologiaAreaId => configuration.GetValue("PsicologiaAreaId", 2);
+    private int[] PsicologiaAreaIds => configuration.GetSection("PsicologiaAreaIds").Get<int[]>() ?? [2, 3];
 
     [HttpGet]
     public async Task<IActionResult> GetCanalizaciones(
@@ -33,7 +33,7 @@ public sealed class CanalizacionesController(
 
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId.Value);
         var items = await canalizacionRepository.GetCanalizaciones(
-            schoolIds, PsicologiaAreaId, estado, solicitanteId, receptorId);
+            schoolIds, PsicologiaAreaIds, estado, solicitanteId, receptorId);
 
         return Ok(ApiResponse<IEnumerable<CanalizacionListItemDto>>.Ok(items));
     }
@@ -49,7 +49,7 @@ public sealed class CanalizacionesController(
             return Unauthorized();
 
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId.Value);
-        if (!await scopeRepository.IsStudentInScope(request.AlumnoId, schoolIds, PsicologiaAreaId))
+        if (!await scopeRepository.IsStudentInScope(request.AlumnoId, schoolIds, PsicologiaAreaIds))
             return Forbid();
 
         var id = await canalizacionRepository.Create(request);
@@ -72,7 +72,7 @@ public sealed class CanalizacionesController(
             return NotFound("Canalización no encontrada.");
 
         var schoolIds = await scopeRepository.GetAllowedSchoolIds(userId.Value);
-        if (!await scopeRepository.IsStudentInScope(alumnoId.Value, schoolIds, PsicologiaAreaId))
+        if (!await scopeRepository.IsStudentInScope(alumnoId.Value, schoolIds, PsicologiaAreaIds))
             return Forbid();
 
         await canalizacionRepository.UpdateEstado(id, estado);

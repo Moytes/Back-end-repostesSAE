@@ -5,7 +5,7 @@ namespace Back_end_RepostesSAE.Repositories;
 public interface ICanalizacionRepository
 {
     Task<IEnumerable<CanalizacionListItemDto>> GetCanalizaciones(
-        int[] allowedSchoolIds, int attentionAreaId,
+        int[] allowedSchoolIds, int[] attentionAreaIds,
         string? estado, Guid? solicitanteId, Guid? receptorId);
 
     Task<int> Create(AddCanalizacionRequest request);

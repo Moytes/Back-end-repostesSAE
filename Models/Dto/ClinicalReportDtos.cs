@@ -29,3 +29,16 @@ public sealed class CieSummaryDto
     public int CompletedIndicators { get; set; }
     public decimal Percentage { get; set; }
 }
+
+public sealed class StudentDataSheetDto
+{
+    public Guid StudentId { get; set; }
+    public string StudentName { get; set; } = string.Empty;
+    public string? SchoolName { get; set; }
+    public string? GroupName { get; set; }
+    public short? Grade { get; set; }
+    public List<string> Disabilities { get; set; } = [];
+    public List<string> AttentionAreas { get; set; } = [];
+    public string? CieStatus { get; set; }
+    public int? TeaAlertLevel { get; set; }
+}
