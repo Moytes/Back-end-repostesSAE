@@ -17,7 +17,7 @@ namespace Back_end_RepostesSAE.Controllers;
 [Authorize(Roles = "TUTOR")]
 public sealed class TutorController(
     IEvaluacionRepository evaluacionRepository,
-    ISesionRepository sesionRepository) : ControllerBase
+    ICitaRepository citaRepository) : ControllerBase
 {
     [HttpGet("alumnos/{id:guid}/evaluaciones")]
     public async Task<IActionResult> GetEvaluaciones(Guid id)
@@ -25,18 +25,21 @@ public sealed class TutorController(
         if (!GetAllowedStudentIds().Contains(id))
             return Forbid();
 
-        var items = await evaluacionRepository.GetByStudent(id);
-        return Ok(ApiResponse<IEnumerable<EvaluacionDetailDto>>.Ok(items));
+        var items = await evaluacionRepository.GetResumenByStudent(id);
+        return Ok(ApiResponse<IEnumerable<TutorEvaluacionResumenDto>>.Ok(items));
     }
 
-    [HttpGet("alumnos/{id:guid}/sesiones")]
-    public async Task<IActionResult> GetSesiones(Guid id)
+    [HttpGet("alumnos/{id:guid}/citas")]
+    public async Task<IActionResult> GetCitas(
+        Guid id,
+        [FromQuery] DateOnly? from = null,
+        [FromQuery] DateOnly? to = null)
     {
         if (!GetAllowedStudentIds().Contains(id))
             return Forbid();
 
-        var items = await sesionRepository.GetByStudent(id);
-        return Ok(ApiResponse<IEnumerable<SesionListItemDto>>.Ok(items));
+        var items = await citaRepository.ListByAlumno(id, from, to);
+        return Ok(ApiResponse<IEnumerable<TutorCitaListItemDto>>.Ok(items));
     }
 
     private List<Guid> GetAllowedStudentIds()

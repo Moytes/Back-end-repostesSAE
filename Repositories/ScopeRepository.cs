@@ -55,4 +55,31 @@ public sealed class ScopeRepository(IConfiguration configuration) : IScopeReposi
             AreaIds = attentionAreaIds
         });
     }
+
+    public async Task<bool> IsStudentInDocenteGroup(Guid userId, Guid studentId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        const string sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM user_group ug
+                JOIN "registration" r ON r.group_id = ug.group_id
+                WHERE ug.user_id = @UserId
+                  AND r.student_id = @StudentId
+            );
+            """;
+        return await conn.ExecuteScalarAsync<bool>(sql, new { UserId = userId, StudentId = studentId });
+    }
+
+    public async Task<IEnumerable<Guid>> GetDocenteStudentIds(Guid userId)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        const string sql = """
+            SELECT DISTINCT r.student_id
+            FROM user_group ug
+            JOIN "registration" r ON r.group_id = ug.group_id
+            WHERE ug.user_id = @UserId;
+            """;
+        return await conn.QueryAsync<Guid>(sql, new { UserId = userId });
+    }
 }

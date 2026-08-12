@@ -10,13 +10,15 @@ namespace Back_end_RepostesSAE.Controllers;
 [ApiController]
 [Route("api/clinical")]
 [Produces("application/json")]
-[Authorize(Roles = "ESPECIALISTA_PSI")]
+[Authorize(Roles = "ESPECIALISTA")]
 public sealed class SesionesController(
     IScopeRepository scopeRepository,
     ISesionRepository sesionRepository,
     IConfiguration configuration) : ControllerBase
 {
-    private int[] PsicologiaAreaIds => configuration.GetSection("PsicologiaAreaIds").Get<int[]>() ?? [2, 3];
+    // Igual que en los demás controladores clínicos: cualquier tipo de especialista
+    // registra sesiones de seguimiento, no solo Psicología.
+    private int[] PsicologiaAreaIds => configuration.GetSection("TodasLasAreaIds").Get<int[]>() ?? [1, 2, 3, 4];
 
     [HttpGet("alumnos/{alumnoId:guid}/sesiones")]
     public async Task<IActionResult> GetByStudent(Guid alumnoId)

@@ -8,4 +8,6 @@ public interface IScopeRepository
 {
     Task<int[]> GetAllowedSchoolIds(Guid userId);
     Task<bool> IsStudentInScope(Guid studentId, int[] allowedSchoolIds, int[] attentionAreaIds);
+    Task<bool> IsStudentInDocenteGroup(Guid userId, Guid studentId);
+    Task<IEnumerable<Guid>> GetDocenteStudentIds(Guid userId);
 }
