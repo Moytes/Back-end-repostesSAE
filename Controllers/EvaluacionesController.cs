@@ -10,14 +10,18 @@ namespace Back_end_RepostesSAE.Controllers;
 [ApiController]
 [Route("api/clinical/evaluaciones-psicopedagogicas")]
 [Produces("application/json")]
-[Authorize(Roles = "ESPECIALISTA_PSI")]
+[Authorize(Roles = "ESPECIALISTA")]
 public sealed class EvaluacionesController(
     IScopeRepository scopeRepository,
     IClinicalReadRepository clinicalRepository,
     IEvaluacionRepository evaluacionRepository,
     IConfiguration configuration) : ControllerBase
 {
-    private int[] PsicologiaAreaIds => configuration.GetSection("PsicologiaAreaIds").Get<int[]>() ?? [2, 3];
+    private static readonly string[] EstadosEditables = ["BORRADOR", "EN_REVISION"];
+
+    // Igual que en ClinicalExpedienteController/ReportesController: cualquier tipo de
+    // especialista puede levantar evaluaciones, no solo Psicología.
+    private int[] PsicologiaAreaIds => configuration.GetSection("TodasLasAreaIds").Get<int[]>() ?? [1, 2, 3, 4];
 
     [HttpGet]
     public async Task<IActionResult> GetEvaluaciones(
@@ -51,6 +55,17 @@ public sealed class EvaluacionesController(
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] SaveEvaluacionRequest request)
     {
+        request.Estado = request.Estado?.Trim().ToUpperInvariant() ?? "BORRADOR";
+        if (request.AlumnoId == Guid.Empty
+            || request.CicloId <= 0
+            || string.IsNullOrWhiteSpace(request.MotivoEvaluacion)
+            || request.AreasEvaluar.Length == 0
+            || request.InstrumentosAplicar.Length == 0)
+            return BadRequest("Alumno, ciclo escolar, motivo, áreas e instrumentos son obligatorios.");
+
+        if (!EstadosEditables.Contains(request.Estado))
+            return BadRequest("Estado inválido para una nueva evaluación.");
+
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
@@ -74,6 +89,70 @@ public sealed class EvaluacionesController(
             return Forbid();
 
         await evaluacionRepository.Update(id, request);
+        return Ok(ApiResponse<object>.Ok(new { id }));
+    }
+
+    [HttpGet("{id:int}/bap")]
+    public async Task<IActionResult> GetBap(int id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var alumnoId = await evaluacionRepository.GetAlumnoId(id);
+        if (alumnoId == null) return NotFound("Evaluación no encontrada.");
+
+        if (!await IsInScope(userId.Value, alumnoId.Value))
+            return Forbid();
+
+        var items = await evaluacionRepository.GetBap(id);
+        return Ok(ApiResponse<IReadOnlyList<EvalPsicoBapDto>>.Ok(items));
+    }
+
+    [HttpPut("{id:int}/bap")]
+    public async Task<IActionResult> ReplaceBap(int id, [FromBody] ReplaceEvalPsicoBapRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var alumnoId = await evaluacionRepository.GetAlumnoId(id);
+        if (alumnoId == null) return NotFound("Evaluación no encontrada.");
+
+        if (!await IsInScope(userId.Value, alumnoId.Value))
+            return Forbid();
+
+        await evaluacionRepository.ReplaceBap(id, request.Items);
+        return Ok(ApiResponse<object>.Ok(new { id }));
+    }
+
+    [HttpGet("{id:int}/colaboradores")]
+    public async Task<IActionResult> GetColaboradores(int id)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var alumnoId = await evaluacionRepository.GetAlumnoId(id);
+        if (alumnoId == null) return NotFound("Evaluación no encontrada.");
+
+        if (!await IsInScope(userId.Value, alumnoId.Value))
+            return Forbid();
+
+        var items = await evaluacionRepository.GetColaboradores(id);
+        return Ok(ApiResponse<IReadOnlyList<EvalPsicoColaboradorDto>>.Ok(items));
+    }
+
+    [HttpPut("{id:int}/colaboradores")]
+    public async Task<IActionResult> ReplaceColaboradores(int id, [FromBody] ReplaceEvalPsicoColaboradoresRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var alumnoId = await evaluacionRepository.GetAlumnoId(id);
+        if (alumnoId == null) return NotFound("Evaluación no encontrada.");
+
+        if (!await IsInScope(userId.Value, alumnoId.Value))
+            return Forbid();
+
+        await evaluacionRepository.ReplaceColaboradores(id, request.Items);
         return Ok(ApiResponse<object>.Ok(new { id }));
     }
 

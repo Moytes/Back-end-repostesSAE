@@ -5,6 +5,10 @@ public sealed class CanalizacionListItemDto
     public int Id { get; set; }
     public Guid AlumnoId { get; set; }
     public string AlumnoNombre { get; set; } = string.Empty;
+    public string? AlumnoCurp { get; set; }
+    public short? Grado { get; set; }
+    public string? Grupo { get; set; }
+    public string? EscuelaNombre { get; set; }
     public int CicloId { get; set; }
     public DateOnly Fecha { get; set; }
     public int? AreaCanaliza { get; set; }
@@ -17,6 +21,12 @@ public sealed class CanalizacionListItemDto
     public string? ReceptorNombre { get; set; }
     public DateOnly? FechaRecibido { get; set; }
     public string Estado { get; set; } = "PENDIENTE";
+    public string? TipoAtencion { get; set; }
+    public DateOnly? FechaAtencion { get; set; }
+    public string? ObservacionesClinicas { get; set; }
+    public int? DerivarAreaId { get; set; }
+    public string? DerivarAreaNombre { get; set; }
+    public string? Prioridad { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -34,4 +44,13 @@ public sealed class AddCanalizacionRequest
 public sealed class UpdateCanalizacionEstadoRequest
 {
     public string Estado { get; set; } = string.Empty;
+}
+
+public sealed class AtenderCanalizacionRequest
+{
+    public string TipoAtencion { get; set; } = string.Empty;
+    public DateOnly? FechaAtencion { get; set; }
+    public string? ObservacionesClinicas { get; set; }
+    public int? DerivarAreaId { get; set; }
+    public string Prioridad { get; set; } = "MEDIA";
 }

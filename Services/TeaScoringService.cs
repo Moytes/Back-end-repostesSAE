@@ -16,6 +16,7 @@ public static class TeaScoringService
         {
             <= 2 => "SIN_ALERTA",
             <= 7 => "LEVE",
+            <= 14 => "MODERADO",
             _ => "SIGNIFICATIVO"
         };
 

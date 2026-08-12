@@ -63,7 +63,7 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
     }
 
     public async Task<IEnumerable<TeaAlertDto>> GetTeaAlerts(
-        int[] allowedSchoolIds, int[] attentionAreaIds, int? cicloId, int? alertLevel)
+        int[] allowedSchoolIds, int[] attentionAreaIds, int? cicloId, int? schoolId, int? alertLevel)
     {
         if (allowedSchoolIds.Length == 0) return [];
 
@@ -71,27 +71,69 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
         var sql = $"""
             {AlumnosScopeCte}
             SELECT
+                ts.id                       AS Id,
                 ts.alumno_id                AS StudentId,
                 {StudentNameExpr}           AS StudentName,
-                sc.name                     AS SchoolName,
+                COALESCE(enr.school_name, sc.name) AS SchoolName,
+                enr.grade                   AS Grade,
+                enr.group_name              AS GroupName,
                 CASE ts.nivel_alerta
                     WHEN 'SIGNIFICATIVO' THEN 2
                     WHEN 'MODERADO'      THEN 1
+                    WHEN 'LEVE'          THEN 0
                     ELSE 0
                 END                         AS AlertLevel,
-                ts.fecha                    AS ScreeningDate
+                ts.fecha                    AS ScreeningDate,
+                ts.created_at               AS CreatedAt,
+                ts.contexto_obs             AS ContextoObs,
+                ts.observaciones_generales  AS Observaciones,
+                ts.requiere_canalizacion    AS RequiereCanalizacion,
+                ts.puntaje_total            AS PuntajeTotal,
+                COALESCE(ts.seguimiento_estado, 'ACTIVA') AS SeguimientoEstado,
+                ts.seguimiento_at           AS SeguimientoAt,
+                ts.seguimiento_nota         AS SeguimientoNota
             FROM tea_screenings ts
             JOIN "student" s ON s.id = ts.alumno_id
             LEFT JOIN "school" sc ON sc.id = s.school_id
+            LEFT JOIN LATERAL (
+                SELECT
+                    gr.numero                              AS grade,
+                    CONCAT(gr.numero, '° ', g.section)     AS group_name,
+                    sc2.name                               AS school_name,
+                    sc2.id                                 AS school_id
+                FROM "registration" r
+                JOIN "group" g ON g.id = r.group_id
+                JOIN "grade" gr ON gr.id = g.grade_id
+                JOIN "school" sc2 ON sc2.id = g.school_id
+                WHERE r.student_id = s.id
+                  AND (@CicloId IS NULL OR r.school_year_id = @CicloId)
+                ORDER BY r.school_year_id DESC NULLS LAST
+                LIMIT 1
+            ) enr ON TRUE
             WHERE ts.alumno_id IN (SELECT id FROM alumnos_scope)
+              AND ts.nivel_alerta IN ('LEVE', 'MODERADO', 'SIGNIFICATIVO')
               AND (@CicloId IS NULL OR ts.ciclo_id = @CicloId)
+              AND (@SchoolId IS NULL OR COALESCE(enr.school_id, s.school_id) = @SchoolId)
               AND (@AlertLevel IS NULL OR
                    CASE ts.nivel_alerta
                        WHEN 'SIGNIFICATIVO' THEN 2
                        WHEN 'MODERADO'      THEN 1
-                       ELSE 0
+                       WHEN 'LEVE'          THEN 0
+                       ELSE -1
                    END = @AlertLevel)
-            ORDER BY ts.fecha DESC;
+            ORDER BY
+                CASE COALESCE(ts.seguimiento_estado, 'ACTIVA')
+                    WHEN 'RESUELTA' THEN 1
+                    ELSE 0
+                END,
+                CASE ts.nivel_alerta
+                    WHEN 'SIGNIFICATIVO' THEN 2
+                    WHEN 'MODERADO'      THEN 1
+                    WHEN 'LEVE'          THEN 0
+                    ELSE -1
+                END DESC,
+                ts.fecha DESC,
+                ts.id DESC;
             """;
 
         return await conn.QueryAsync<TeaAlertDto>(sql, new
@@ -99,12 +141,13 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
             AllowedSchoolIds = allowedSchoolIds,
             AreaIds = attentionAreaIds,
             CicloId = cicloId,
+            SchoolId = schoolId,
             AlertLevel = alertLevel
         });
     }
 
     public async Task<IEnumerable<CieSummaryDto>> GetCieSummary(
-        int[] allowedSchoolIds, int[] attentionAreaIds, Guid? studentId, int? cicloId)
+        int[] allowedSchoolIds, int[] attentionAreaIds, Guid? studentId, int? cicloId, int? schoolId = null)
     {
         if (allowedSchoolIds.Length == 0) return [];
 
@@ -122,9 +165,20 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
             FROM cie_evaluaciones ce
             JOIN "student" s ON s.id = ce.alumno_id
             LEFT JOIN cie_respuestas cr ON cr.evaluacion_id = ce.id
+            LEFT JOIN LATERAL (
+                SELECT sc2.id AS school_id
+                FROM "registration" r
+                JOIN "group" g ON g.id = r.group_id
+                JOIN "school" sc2 ON sc2.id = g.school_id
+                WHERE r.student_id = s.id
+                  AND (@CicloId IS NULL OR r.school_year_id = @CicloId)
+                ORDER BY r.school_year_id DESC NULLS LAST
+                LIMIT 1
+            ) enr ON TRUE
             WHERE ce.alumno_id IN (SELECT id FROM alumnos_scope)
               AND (@StudentId IS NULL OR ce.alumno_id = @StudentId)
               AND (@CicloId   IS NULL OR ce.ciclo_id  = @CicloId)
+              AND (@SchoolId  IS NULL OR COALESCE(enr.school_id, s.school_id) = @SchoolId)
             GROUP BY ce.alumno_id, {StudentNameExpr}, ce.dimension_id
             ORDER BY StudentName;
             """;
@@ -134,7 +188,8 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
             AllowedSchoolIds = allowedSchoolIds,
             AreaIds = attentionAreaIds,
             StudentId = studentId,
-            CicloId = cicloId
+            CicloId = cicloId,
+            SchoolId = schoolId
         });
     }
 
@@ -197,6 +252,36 @@ public sealed class ClinicalReadRepository(IConfiguration configuration) : IClin
             AllowedSchoolIds = allowedSchoolIds,
             AreaIds = attentionAreaIds,
             SchoolId = schoolId,
+            SchoolYearId = schoolYearId
+        });
+    }
+
+    public async Task<IEnumerable<CanalizacionMonthCountDto>> GetCanalizacionCountsForMonth(
+        int[] allowedSchoolIds, int[] attentionAreaIds, int year, int month, int? schoolYearId)
+    {
+        if (allowedSchoolIds.Length == 0) return [];
+
+        var start = new DateOnly(year, month, 1);
+        var end = start.AddMonths(1);
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        var sql = $"""
+            {AlumnosScopeCte}
+            SELECT c.estado AS Estado, COUNT(*)::int AS Total
+            FROM canalizaciones c
+            WHERE c.alumno_id IN (SELECT id FROM alumnos_scope)
+              AND c.fecha >= @Start AND c.fecha < @End
+              AND (@SchoolYearId IS NULL OR c.ciclo_id = @SchoolYearId)
+            GROUP BY c.estado
+            ORDER BY c.estado;
+            """;
+
+        return await conn.QueryAsync<CanalizacionMonthCountDto>(sql, new
+        {
+            AllowedSchoolIds = allowedSchoolIds,
+            AreaIds = attentionAreaIds,
+            Start = start,
+            End = end,
             SchoolYearId = schoolYearId
         });
     }

@@ -8,11 +8,14 @@ public interface IClinicalReadRepository
         int[] allowedSchoolIds, int[] attentionAreaIds, Guid? studentId, int? cicloId);
 
     Task<IEnumerable<TeaAlertDto>> GetTeaAlerts(
-        int[] allowedSchoolIds, int[] attentionAreaIds, int? cicloId, int? alertLevel);
+        int[] allowedSchoolIds, int[] attentionAreaIds, int? cicloId, int? schoolId, int? alertLevel);
 
     Task<IEnumerable<CieSummaryDto>> GetCieSummary(
-        int[] allowedSchoolIds, int[] attentionAreaIds, Guid? studentId, int? cicloId);
+        int[] allowedSchoolIds, int[] attentionAreaIds, Guid? studentId, int? cicloId, int? schoolId = null);
 
     Task<IEnumerable<StudentDataSheetDto>> GetStudentDataSheet(
         int[] allowedSchoolIds, int[] attentionAreaIds, int? schoolId, int? schoolYearId);
+
+    Task<IEnumerable<CanalizacionMonthCountDto>> GetCanalizacionCountsForMonth(
+        int[] allowedSchoolIds, int[] attentionAreaIds, int year, int month, int? schoolYearId);
 }

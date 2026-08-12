@@ -1,11 +1,20 @@
 using System.Text;
 using Back_end_RepostesSAE.Data;
 using Back_end_RepostesSAE.Repositories;
+using Back_end_RepostesSAE.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+QuestPDF.Settings.License = LicenseType.Community;
+
+// Dapper no reconoce DateOnly/TimeOnly de forma nativa; sin esto, cualquier repositorio
+// que pase una fecha/hora como parámetro (CitaRepository, etc.) truena con
+// "The member X of type System.DateOnly cannot be used as a parameter value".
+DapperDateTypeHandlers.Register();
 
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
@@ -24,6 +33,11 @@ builder.Services.AddScoped<IClinicalReadRepository, ClinicalReadRepository>();
 builder.Services.AddScoped<IEvaluacionRepository, EvaluacionRepository>();
 builder.Services.AddScoped<ISesionRepository, SesionRepository>();
 builder.Services.AddScoped<ITeaRepository, TeaRepository>();
+builder.Services.AddScoped<ICitaRepository, CitaRepository>();
+builder.Services.AddScoped<ICieRepository, CieRepository>();
+builder.Services.AddScoped<IExpedienteRepository, ExpedienteRepository>();
+builder.Services.AddSingleton<SpecialistReportPdfService>();
+builder.Services.AddSingleton<ExpedientePdfService>();
 
 // Autenticación JWT (mismo secreto/issuer/audience que Back-end-SAEV3)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

@@ -3,6 +3,9 @@ namespace Back_end_RepostesSAE.Models.Dto;
 /// <summary>Campos clínicos compartidos entre el detalle y el request de guardado.</summary>
 public abstract class EvaluacionCamposBase
 {
+    public string[] AreasEvaluar { get; set; } = [];
+    public string[] InstrumentosAplicar { get; set; } = [];
+    public string? InstrumentosDetalle { get; set; }
     public string? MotivoEvaluacion { get; set; }
     public string? ConductaEvaluacion { get; set; }
     public string? AntecedentesEmbarazo { get; set; }
@@ -25,6 +28,17 @@ public abstract class EvaluacionCamposBase
     public string? Conclusiones { get; set; }
 }
 
+/// <summary>Resumen de evaluación expuesto al rol TUTOR (sin campos clínicos).</summary>
+public sealed class TutorEvaluacionResumenDto
+{
+    public int Id { get; set; }
+    public Guid AlumnoId { get; set; }
+    public int CicloId { get; set; }
+    public DateOnly FechaElaboracion { get; set; }
+    public string Estado { get; set; } = "BORRADOR";
+    public string? MotivoEvaluacion { get; set; }
+}
+
 public sealed class EvaluacionDetailDto : EvaluacionCamposBase
 {
     public int Id { get; set; }
@@ -42,4 +56,33 @@ public sealed class SaveEvaluacionRequest : EvaluacionCamposBase
     public Guid AlumnoId { get; set; }
     public int CicloId { get; set; }
     public string? Estado { get; set; }
+}
+
+public sealed class EvalPsicoBapDto
+{
+    public int? Id { get; set; }
+    public string? TipoBap { get; set; }
+    public string? Contexto { get; set; }
+    public string? IndicadorInclusion { get; set; }
+    public string? Descripcion { get; set; }
+}
+
+public sealed class EvalPsicoColaboradorDto
+{
+    public int? Id { get; set; }
+    public Guid? UsuarioId { get; set; }
+    public string? NombreExterno { get; set; }
+    public string? RolColaborador { get; set; }
+    public bool FirmaDigital { get; set; }
+    public DateTime? FechaFirma { get; set; }
+}
+
+public sealed class ReplaceEvalPsicoBapRequest
+{
+    public List<EvalPsicoBapDto> Items { get; set; } = [];
+}
+
+public sealed class ReplaceEvalPsicoColaboradoresRequest
+{
+    public List<EvalPsicoColaboradorDto> Items { get; set; } = [];
 }
